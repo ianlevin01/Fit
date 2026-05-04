@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/juani/OneDrive/Documentos/Ciencias_de_la_computacion/2026/Oncepuntos/Vendedores/**)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\juani\\\\OneDrive\\\\Documentos\\\\Ciencias_de_la_computacion\\\\2026\\\\Oncepuntos\\\\Vendedores\\\\SellerPage\" | Where-Object { $_.PSIsContainer })",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\juani\\\\OneDrive\\\\Documentos\\\\Ciencias_de_la_computacion\\\\2026\\\\Oncepuntos\\\\Vendedores\\\\SellerPage\\\\src\" -Recurse | Where-Object {$_.Extension -match \"\\\\.\\(jsx|js\\)$\"})",
+      "Bash(npm install *)"
+    ]
+  }
+}
