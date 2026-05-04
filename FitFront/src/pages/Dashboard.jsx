@@ -20,6 +20,13 @@ function StatCard({ label, value, unit, color, icon: Icon, sub }) {
   );
 }
 
+function fatLabel(balanceKcal) {
+  if (Math.abs(balanceKcal) < 50) return null;
+  const grams = Math.abs(Math.round(balanceKcal / 7.7)); // 7700 kcal = 1000g
+  const lost = balanceKcal > 0;
+  return lost ? `≈ ${grams} g de grasa quemada` : `≈ ${grams} g de grasa acumulada`;
+}
+
 function BalanceBanner({ balance }) {
   if (balance == null) return null;
   const deficit = balance > 0;
@@ -27,6 +34,7 @@ function BalanceBanner({ balance }) {
   const color = neutral ? 'var(--text-muted)' : deficit ? 'var(--green)' : 'var(--red)';
   const Icon = neutral ? Minus : deficit ? TrendingDown : TrendingUp;
   const msg = neutral ? 'Estás casi en balance' : deficit ? 'Estás en déficit calórico' : 'Estás en superávit calórico';
+  const fat = fatLabel(balance);
 
   return (
     <div className="card" style={{ background: neutral ? 'var(--surface)' : deficit ? 'var(--green-subtle)' : 'var(--red-subtle)', border: `1px solid ${color}` }}>
@@ -34,9 +42,14 @@ function BalanceBanner({ balance }) {
         <Icon size={28} color={color} />
         <div>
           <div style={{ fontWeight: 700, fontSize: 18, color }}>{msg}</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>
             Balance de hoy: <strong style={{ color }}>{Math.abs(balance)} kcal {deficit ? 'de déficit' : 'de superávit'}</strong>
           </div>
+          {fat && (
+            <div style={{ fontSize: 12, color, marginTop: 4, fontWeight: 500 }}>
+              {fat}
+            </div>
+          )}
         </div>
       </div>
     </div>

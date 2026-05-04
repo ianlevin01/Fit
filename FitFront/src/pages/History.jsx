@@ -17,6 +17,17 @@ function fmt(n) {
   return n >= 0 ? `+${n}` : `${n}`;
 }
 
+function fatFromKcal(balanceKcal) {
+  const grams = Math.abs(Math.round(balanceKcal / 7.7));
+  const lost = balanceKcal > 0;
+  if (grams < 1) return null;
+  if (grams >= 1000) {
+    const kg = (grams / 1000).toFixed(2);
+    return { text: lost ? `${kg} kg perdidos` : `${kg} kg ganados`, lost };
+  }
+  return { text: lost ? `${grams} g perdidos` : `${grams} g ganados`, lost };
+}
+
 function BalanceChip({ value }) {
   const deficit = value > 0;
   const neutral = Math.abs(value) < 50;
@@ -115,6 +126,55 @@ function DayImage({ date }) {
   );
 }
 
+function DayDetail({ date }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['day-detail', date],
+    queryFn: () => client.get(`/fit/logs/summary?date=${date}`).then(r => r.data),
+  });
+
+  if (isLoading) return <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>Cargando entradas...</div>;
+
+  const food = data?.food_entries || [];
+  const activity = data?.activity_entries || [];
+
+  return (
+    <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 12 }}>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+          Comidas
+        </div>
+        {!food.length ? (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sin registros</div>
+        ) : food.map(e => (
+          <div key={e.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{e.raw_description}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              {Math.round(e.total_calories)} kcal · P:{e.total_protein?.toFixed(1)}g · C:{e.total_carbs?.toFixed(1)}g · G:{e.total_fat?.toFixed(1)}g
+              {e.has_estimates && <span style={{ color: 'var(--yellow)', marginLeft: 6 }}>~ estimado</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+          Actividad física
+        </div>
+        {!activity.length ? (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sin registros</div>
+        ) : activity.map(e => (
+          <div key={e.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{e.raw_description}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              {Math.round(e.total_calories_burned)} kcal quemadas
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DayRow({ day }) {
   const [open, setOpen] = useState(false);
   const deficit = day.balance > 0;
@@ -137,14 +197,22 @@ function DayRow({ day }) {
       {open && (
         <tr style={{ background: 'var(--surface-alt)' }}>
           <td colSpan={5} style={{ padding: '12px 16px' }}>
-            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-muted)' }}>
               <span>BMR: <strong style={{ color: 'var(--text)' }}>{day.bmr} kcal</strong></span>
               <span>Ejercicio: <strong style={{ color: 'var(--accent)' }}>{day.burned_activity} kcal</strong></span>
               <span>Proteínas: <strong style={{ color: 'var(--blue)' }}>{day.protein}g</strong></span>
               <span>Carbos: <strong style={{ color: 'var(--yellow)' }}>{day.carbs}g</strong></span>
-              <span>Grasas: <strong style={{ color: 'var(--red)' }}>{day.fat}g</strong></span>
+              <span>Grasas ingeridas: <strong style={{ color: 'var(--red)' }}>{day.fat}g</strong></span>
+              {(() => { const f = fatFromKcal(day.balance); return f ? (
+                <span style={{ color: f.lost ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                  Grasa corporal: {f.text}
+                </span>
+              ) : null; })()}
             </div>
-            <DayImage date={day.date} />
+            <DayDetail date={day.date} />
+            <div style={{ marginTop: 12 }}>
+              <DayImage date={day.date} />
+            </div>
           </td>
         </tr>
       )}
@@ -164,6 +232,7 @@ export default function History() {
 
   const t = data?.totals;
   const balanceColor = !t ? 'var(--text)' : t.total_balance > 0 ? 'var(--green)' : t.total_balance < 0 ? 'var(--red)' : 'var(--text-muted)';
+  const periodFat = t ? fatFromKcal(t.total_balance) : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -203,6 +272,15 @@ export default function History() {
                   color={balanceColor}
                   sub={t.total_balance > 0 ? 'déficit acumulado' : t.total_balance < 0 ? 'superávit acumulado' : 'en equilibrio'}
                 />
+                {periodFat && (
+                  <SummaryCard
+                    label="Grasa corporal"
+                    value={periodFat.text}
+                    unit=""
+                    color={periodFat.lost ? 'var(--green)' : 'var(--red)'}
+                    sub="estimado · 1 kg grasa ≈ 7700 kcal"
+                  />
+                )}
                 <SummaryCard label="Promedio diario ingerido" value={t.avg_consumed} unit="kcal" color="var(--red)" sub={`total: ${t.total_consumed} kcal`} />
                 <SummaryCard label="Promedio diario quemado" value={t.avg_burned} unit="kcal" color="var(--green)" sub={`total: ${t.total_burned} kcal`} />
                 <SummaryCard label="Días con datos" value={t.days_with_data} unit="días" color="var(--text-muted)" />
