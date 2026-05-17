@@ -59,10 +59,14 @@ function DayImage({ date }) {
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState(false);
 
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: ['day-image', date],
     queryFn: () => client.get(`/fit/images/check/${date}`).then(r => r.data),
+    retry: false,
   });
+
+  // En Vercel las imágenes devuelven 503
+  const unavailable = isError || data?.error;
 
   async function handleUpload(e) {
     const file = e.target.files[0];
@@ -88,7 +92,11 @@ function DayImage({ date }) {
     <div style={{ marginTop: 12 }}>
       <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUpload} />
 
-      {data?.exists ? (
+      {unavailable ? (
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <ImagePlus size={11} /> Las fotos solo están disponibles en modo local
+        </span>
+      ) : data?.exists ? (
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <img
             src={data.url}
